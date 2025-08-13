@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loyverse Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Loyverse Dashboard</h1>
+            <p>View takings from multiple accounts</p>
+        </header>
+        
+        <div class="accounts-container">
+            <!-- Account 1 -->
+            <div class="account-card">
+                <h2>Account 1</h2>
+                <div class="account-info">
+                    <input type="text" id="account1-name" placeholder="Account Name" class="account-input">
+                    <input type="text" id="account1-api-key" placeholder="Access Token" class="account-input">
+                    <button class="refresh-btn" onclick="connectOAuth(1)" style="background:#0d6efd;margin-bottom:10px">Connect with Loyverse (OAuth)</button>
+                </div>
+                <div class="takings-display">
+                    <div class="takings-item">
+                        <span class="label">Today's Takings:</span>
+                        <span class="value" id="account1-today">£0.00</span>
+                    </div>
+                    <div class="takings-item">
+                        <span class="label">This Week:</span>
+                        <span class="value" id="account1-week">£0.00</span>
+                    </div>
+                    <div class="takings-item">
+                        <span class="label">This Month:</span>
+                        <span class="value" id="account1-month">£0.00</span>
+                    </div>
+                </div>
+                <button class="refresh-btn" onclick="refreshAccount1()">Refresh Data</button>
+                <button class="test-btn" onclick="testConnection(1)" style="margin-top: 10px; background: #6c757d;">Test Connection</button>
+            </div>
+
+            <!-- Account 2 -->
+            <div class="account-card">
+                <h2>Account 2</h2>
+                <div class="account-info">
+                    <input type="text" id="account2-name" placeholder="Account Name" class="account-input">
+                    <input type="text" id="account2-api-key" placeholder="Access Token" class="account-input">
+                    <button class="refresh-btn" onclick="connectOAuth(2)" style="background:#0d6efd;margin-bottom:10px">Connect with Loyverse (OAuth)</button>
+                </div>
+                <div class="takings-display">
+                    <div class="takings-item">
+                        <span class="label">Today's Takings:</span>
+                        <span class="value" id="account2-today">£0.00</span>
+                    </div>
+                    <div class="takings-item">
+                        <span class="label">This Week:</span>
+                        <span class="value" id="account2-week">£0.00</span>
+                    </div>
+                    <div class="takings-item">
+                        <span class="label">This Month:</span>
+                        <span class="value" id="account2-month">£0.00</span>
+                    </div>
+                </div>
+                <button class="refresh-btn" onclick="refreshAccount2()">Refresh Data</button>
+                <button class="test-btn" onclick="testConnection(2)" style="margin-top: 10px; background: #6c757d;">Test Connection</button>
+            </div>
+        </div>
+
+        <!-- Combined Summary -->
+        <div class="summary-card">
+            <h2>Combined Summary</h2>
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <span class="label">Total Today:</span>
+                    <span class="value" id="total-today">£0.00</span>
+                </div>
+                <div class="summary-item">
+                    <span class="label">Total This Week:</span>
+                    <span class="value" id="total-week">£0.00</span>
+                </div>
+                <div class="summary-item">
+                    <span class="label">Total This Month:</span>
+                    <span class="value" id="total-month">£0.00</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Info Section -->
+        <div class="api-info">
+            <h3>API Connection Info</h3>
+            <p><strong>Note:</strong> If you get CORS errors, the app uses a local proxy on http://localhost:3001. You can also connect via OAuth using the buttons above.</p>
+        </div>
+
+        <!-- Manual Entry Section -->
+        <div class="manual-entry">
+            <h3>Manual Data Entry</h3>
+            <p>If API access isn't available, you can manually enter your takings:</p>
+            <div class="manual-form">
+                <div class="form-group">
+                    <label for="manual-account">Account:</label>
+                    <select id="manual-account">
+                        <option value="1">Account 1</option>
+                        <option value="2">Account 2</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="manual-amount">Amount:</label>
+                    <input type="number" id="manual-amount" step="0.01" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label for="manual-date">Date:</label>
+                    <input type="date" id="manual-date">
+                </div>
+                <button onclick="addManualEntry()">Add Entry</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
