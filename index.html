@@ -419,91 +419,72 @@
                 const startOfWeekISO = startOfWeek.toISOString();
                 const startOfMonthISO = startOfMonth.toISOString();
                 
-                // Try using a different approach - use a working CORS proxy
-                const workingProxy = 'https://api.allorigins.win/raw?url=';
+                // Try a different approach - use a more reliable CORS proxy
+                const corsProxy = 'https://corsproxy.io/?';
                 const loyverseBase = 'https://api.loyverse.com/v0.7/receipts';
                 
-                // Make a single test call first to see if it works
-                const testUrl = `${workingProxy}${encodeURIComponent(loyverseBase + '?limit=1')}`;
+                // Make a single test call first
+                const testUrl = `${corsProxy}${loyverseBase}?limit=1`;
                 
+                console.log('Testing API connection...');
                 const testResponse = await fetch(testUrl, {
+                    method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${accessToken}`,
-                        'Accept': 'application/json'
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
                     }
                 });
+                
+                console.log('Test response status:', testResponse.status);
+                console.log('Test response headers:', testResponse.headers);
                 
                 if (!testResponse.ok) {
                     throw new Error(`Test call failed: ${testResponse.status} ${testResponse.statusText}`);
                 }
                 
                 const testData = await testResponse.text();
-                console.log('Test response:', testData.substring(0, 200));
+                console.log('Test response data:', testData.substring(0, 500));
                 
                 // If test works, fetch all data
-                const [todayRes, weekRes, monthRes] = await Promise.all([
-                    fetch(`${workingProxy}${encodeURIComponent(loyverseBase + `?created_at_min=${startOfDayISO}&created_at_max=${nowISO}&limit=1000`)}`, {
-                        headers: {
-                            'Authorization': `Bearer ${accessToken}`,
-                            'Accept': 'application/json'
-                        }
-                    }),
-                    fetch(`${workingProxy}${encodeURIComponent(loyverseBase + `?created_at_min=${startOfWeekISO}&created_at_max=${nowISO}&limit=1000`)}`, {
-                        headers: {
-                            'Authorization': `Bearer ${accessToken}`,
-                            'Accept': 'application/json'
-                        }
-                    }),
-                    fetch(`${workingProxy}${encodeURIComponent(loyverseBase + `?created_at_min=${startOfMonthISO}&created_at_max=${nowISO}&limit=1000`)}`, {
-                        headers: {
-                            'Authorization': `Bearer ${accessToken}`,
-                            'Accept': 'application/json'
-                        }
-                    })
-                ]);
+                console.log('Fetching today data...');
+                const todayRes = await fetch(`${corsProxy}${loyverseBase}?created_at_min=${startOfDayISO}&created_at_max=${nowISO}&limit=1000`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
                 
-                if (!todayRes.ok || !weekRes.ok || !monthRes.ok) {
-                    throw new Error(`One or more API calls failed. Today: ${todayRes.status}, Week: ${weekRes.status}, Month: ${monthRes.status}`);
+                console.log('Today response status:', todayRes.status);
+                
+                if (!todayRes.ok) {
+                    throw new Error(`Today data failed: ${todayRes.status} ${todayRes.statusText}`);
                 }
                 
-                const [todayText, weekText, monthText] = await Promise.all([
-                    todayRes.text(),
-                    weekRes.text(),
-                    monthRes.text()
-                ]);
+                const todayText = await todayRes.text();
+                console.log('Today response data:', todayText.substring(0, 500));
                 
-                // Parse JSON responses
                 const todayData = JSON.parse(todayText);
-                const weekData = JSON.parse(weekText);
-                const monthData = JSON.parse(monthText);
+                console.log('Parsed today data:', todayData);
                 
-                console.log('Today data:', todayData);
-                console.log('Week data:', weekData);
-                console.log('Month data:', monthData);
-                
-                // Calculate totals from receipts
+                // Calculate totals
                 const todayTotal = calculateTotal(todayData.receipts || []);
-                const weekTotal = calculateTotal(weekData.receipts || []);
-                const monthTotal = calculateTotal(monthData.receipts || []);
-                
                 document.getElementById('today-takings').textContent = formatCurrency(todayTotal);
-                document.getElementById('week-takings').textContent = formatCurrency(weekTotal);
-                document.getElementById('month-takings').textContent = formatCurrency(monthTotal);
                 
-                showSuccess(`Data loaded! Today: ${formatCurrency(todayTotal)}, Week: ${formatCurrency(weekTotal)}, Month: ${formatCurrency(monthTotal)}`);
+                showSuccess(`Today's data loaded: ${formatCurrency(todayTotal)}`);
+                
+                // For now, just show today's data to test
+                document.getElementById('week-takings').textContent = 'Loading...';
+                document.getElementById('month-takings').textContent = 'Loading...';
                 
             } catch (error) {
                 console.error('Error refreshing data:', error);
                 showError(`Failed to refresh data: ${error.message}`);
                 
-                // Show more detailed error info
-                if (error.message.includes('JSON')) {
-                    showError('Invalid response from Loyverse API. Check console for details.');
-                } else if (error.message.includes('CORS')) {
-                    showError('CORS issue. Try refreshing the page.');
-                } else {
-                    showError(`API Error: ${error.message}`);
-                }
+                // Show the full error in console for debugging
+                console.log('Full error details:', error);
             }
         }
         
