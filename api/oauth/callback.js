@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -52,4 +52,4 @@ export default async function handler(req, res) {
     const errorUrl = `https://${req.headers.host}/?oauth_error=${encodeURIComponent(err.message)}`;
     return res.redirect(errorUrl);
   }
-}
+};

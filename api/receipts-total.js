@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -25,11 +25,11 @@ export default async function handler(req, res) {
     params.set('limit', String(limit || 1000));
 
     const url = `https://api.loyverse.com/v0.7/receipts?${params.toString()}`;
-
+    
     const response = await fetch(url, {
       headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json',
       },
     });
 
@@ -66,4 +66,4 @@ export default async function handler(req, res) {
       detail: err.message 
     });
   }
-}
+};
