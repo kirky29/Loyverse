@@ -12,31 +12,35 @@ document.addEventListener('DOMContentLoaded', function() {
     updateProxyStatus();
 });
 
+function isLocalhost() {
+    return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+}
+
 function getProxyBaseUrl() {
-    // Check if we're running locally or in production
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        return 'http://localhost:3001';
-    } else {
-        // Production URL - Vercel deployment
-        return 'https://loyverse-dashboard.vercel.app';
-    }
+    // Local development hits local proxy
+    if (isLocalhost()) return 'http://localhost:3001';
+    // In production, use same-origin (no hardcoded domain)
+    return '';
+}
+
+function buildApiUrl(path) {
+    const base = getProxyBaseUrl();
+    if (!base) return path; // same-origin in production
+    return `${base}${path}`;
 }
 
 function updateProxyStatus() {
-    const proxyUrl = getProxyBaseUrl();
+    const base = getProxyBaseUrl();
     const statusElement = document.getElementById('proxy-status');
     if (statusElement) {
-        statusElement.textContent = `API: ${proxyUrl}`;
-        statusElement.className = proxyUrl.includes('localhost') ? 'local' : 'production';
+        statusElement.textContent = `API: ${base || window.location.origin}`;
+        statusElement.className = base ? 'proxy-status local' : 'proxy-status production';
     }
 }
 
 function connectOAuth(accountNumber) {
-    const proxy = getProxyBaseUrl();
-    const oauthUrl = proxy.includes('localhost') 
-        ? `${proxy}/oauth/login?account=${accountNumber}`
-        : `${proxy}/api/oauth/login?account=${accountNumber}`;
-    window.open(oauthUrl, '_blank');
+    const oauthPath = `/api/oauth/login?account=${accountNumber}`;
+    window.open(buildApiUrl(oauthPath), '_blank');
 }
 
 // Set current date in manual entry form
@@ -102,7 +106,7 @@ async function refreshAccount2() {
     await refreshAccount(2);
 }
 
-// Refresh account data using local proxy
+// Refresh account data using proxy (local) or same-origin (prod)
 async function refreshAccount(accountNumber) {
     const account = accounts[accountNumber];
     
@@ -121,18 +125,19 @@ async function refreshAccount(accountNumber) {
         const startOfWeekISO = startOfWeek.toISOString();
         const startOfMonthISO = startOfMonth.toISOString();
 
-        const proxy = getProxyBaseUrl();
-        const accountParam = `?account=${accountNumber}`;
+        const accountParam = `?account=${accountNumber}`; // used only locally (ignored by prod API)
         const headers = { 'Content-Type': 'application/json' };
 
         const bodyToday = { accessToken: account.apiKey, created_at_min: startOfDayISO, created_at_max: nowISO };
         const bodyWeek = { accessToken: account.apiKey, created_at_min: startOfWeekISO, created_at_max: nowISO };
         const bodyMonth = { accessToken: account.apiKey, created_at_min: startOfMonthISO, created_at_max: nowISO };
 
+        const url = buildApiUrl(`/api/receipts-total${isLocalhost() ? accountParam : ''}`);
+
         const [todayRes, weekRes, monthRes] = await Promise.all([
-            fetch(`${proxy}/api/receipts-total${accountParam}`, { method: 'POST', headers, body: JSON.stringify(bodyToday) }),
-            fetch(`${proxy}/api/receipts-total${accountParam}`, { method: 'POST', headers, body: JSON.stringify(bodyWeek) }),
-            fetch(`${proxy}/api/receipts-total${accountParam}`, { method: 'POST', headers, body: JSON.stringify(bodyMonth) })
+            fetch(url, { method: 'POST', headers, body: JSON.stringify(bodyToday) }),
+            fetch(url, { method: 'POST', headers, body: JSON.stringify(bodyWeek) }),
+            fetch(url, { method: 'POST', headers, body: JSON.stringify(bodyMonth) })
         ]);
 
         const [todayJson, weekJson, monthJson] = await Promise.all([todayRes.json(), weekRes.json(), monthRes.json()]);
@@ -356,20 +361,20 @@ async function fetchSales(apiKey, startDate, endDate) {
     throw new Error('No working API endpoints found. Please check Loyverse API documentation.');
 }
 
-// Test API connection via proxy
+// Test API connection via proxy / same-origin
 async function testConnection(accountNumber) {
     const apiKey = document.getElementById(`account${accountNumber}-api-key`).value;
     try {
-        const proxy = getProxyBaseUrl();
-        const res = await fetch(`${proxy}/api/receipts-total?account=${accountNumber}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accessToken: apiKey, limit: 1 }) });
+        const url = buildApiUrl(`/api/receipts-total${isLocalhost() ? `?account=${accountNumber}` : ''}`);
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accessToken: apiKey, limit: 1 }) });
         const json = await res.json();
         if (res.ok) {
-            alert(`✅ Proxy connection successful! Raw count: ${json.rawCount ?? 'n/a'}`);
+            alert(`✅ API reachable! Raw count: ${json.rawCount ?? 'n/a'}`);
         } else {
-            alert(`❌ Proxy error: ${JSON.stringify(json)}`);
+            alert(`❌ API error: ${JSON.stringify(json)}`);
         }
     } catch (err) {
-        alert(`❌ Proxy connection error: ${err.message}`);
+        alert(`❌ API connection error: ${err.message}`);
     }
 }
 
