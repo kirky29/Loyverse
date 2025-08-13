@@ -406,84 +406,73 @@
             }
             
             try {
-                showSuccess('Fetching data from Loyverse...');
+                showSuccess('Testing Loyverse API connection...');
                 
-                const today = new Date();
-                const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                const startOfWeek = new Date(today);
-                startOfWeek.setDate(today.getDate() - today.getDay());
-                const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                // For now, let's show some sample data and test the connection
+                // This will help us debug what's actually happening
                 
-                const nowISO = today.toISOString();
-                const startOfDayISO = startOfDay.toISOString();
-                const startOfWeekISO = startOfWeek.toISOString();
-                const startOfMonthISO = startOfMonth.toISOString();
+                console.log('Access token:', accessToken.substring(0, 20) + '...');
+                console.log('Testing API endpoint...');
                 
-                // Try a different approach - use a more reliable CORS proxy
-                const corsProxy = 'https://corsproxy.io/?';
-                const loyverseBase = 'https://api.loyverse.com/v0.7/receipts';
+                // Try a simple approach - use a different CORS proxy
+                const testUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://api.loyverse.com/v0.7/receipts?limit=1');
                 
-                // Make a single test call first
-                const testUrl = `${corsProxy}${loyverseBase}?limit=1`;
+                console.log('Testing URL:', testUrl);
                 
-                console.log('Testing API connection...');
-                const testResponse = await fetch(testUrl, {
+                const response = await fetch(testUrl, {
                     method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${accessToken}`,
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
+                        'Accept': 'application/json'
                     }
                 });
                 
-                console.log('Test response status:', testResponse.status);
-                console.log('Test response headers:', testResponse.headers);
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
                 
-                if (!testResponse.ok) {
-                    throw new Error(`Test call failed: ${testResponse.status} ${testResponse.statusText}`);
-                }
-                
-                const testData = await testResponse.text();
-                console.log('Test response data:', testData.substring(0, 500));
-                
-                // If test works, fetch all data
-                console.log('Fetching today data...');
-                const todayRes = await fetch(`${corsProxy}${loyverseBase}?created_at_min=${startOfDayISO}&created_at_max=${nowISO}&limit=1000`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
+                if (response.ok) {
+                    const data = await response.text();
+                    console.log('Raw response:', data);
+                    
+                    try {
+                        const jsonData = JSON.parse(data);
+                        console.log('Parsed data:', jsonData);
+                        
+                        if (jsonData.receipts && jsonData.receipts.length > 0) {
+                            // Success! Show the data
+                            const total = calculateTotal(jsonData.receipts);
+                            const receiptCount = jsonData.receipts.length;
+                            
+                            document.getElementById('today-takings').textContent = formatCurrency(total);
+                            document.getElementById('week-takings').textContent = formatCurrency(total);
+                            document.getElementById('month-takings').textContent = formatCurrency(total);
+                            
+                            showSuccess(`✅ Success! Found ${receiptCount} receipts, Total: ${formatCurrency(total)}`);
+                        } else {
+                            // No receipts found
+                            document.getElementById('today-takings').textContent = '£0.00';
+                            document.getElementById('week-takings').textContent = '£0.00';
+                            document.getElementById('month-takings').textContent = '£0.00';
+                            
+                            showSuccess('✅ Connected successfully, but no receipts found for this period');
+                        }
+                    } catch (parseError) {
+                        console.error('JSON parse error:', parseError);
+                        showError(`Invalid response from Loyverse: ${data.substring(0, 200)}`);
                     }
-                });
-                
-                console.log('Today response status:', todayRes.status);
-                
-                if (!todayRes.ok) {
-                    throw new Error(`Today data failed: ${todayRes.status} ${todayRes.statusText}`);
+                } else {
+                    throw new Error(`API call failed: ${response.status} ${response.statusText}`);
                 }
-                
-                const todayText = await todayRes.text();
-                console.log('Today response data:', todayText.substring(0, 500));
-                
-                const todayData = JSON.parse(todayText);
-                console.log('Parsed today data:', todayData);
-                
-                // Calculate totals
-                const todayTotal = calculateTotal(todayData.receipts || []);
-                document.getElementById('today-takings').textContent = formatCurrency(todayTotal);
-                
-                showSuccess(`Today's data loaded: ${formatCurrency(todayTotal)}`);
-                
-                // For now, just show today's data to test
-                document.getElementById('week-takings').textContent = 'Loading...';
-                document.getElementById('month-takings').textContent = 'Loading...';
                 
             } catch (error) {
-                console.error('Error refreshing data:', error);
-                showError(`Failed to refresh data: ${error.message}`);
+                console.error('Error:', error);
+                showError(`Connection failed: ${error.message}`);
                 
-                // Show the full error in console for debugging
+                // Show sample data for debugging
+                document.getElementById('today-takings').textContent = '£0.00';
+                document.getElementById('week-takings').textContent = '£0.00';
+                document.getElementById('month-takings').textContent = '£0.00';
+                
                 console.log('Full error details:', error);
             }
         }
