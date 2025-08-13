@@ -283,16 +283,22 @@
             }
         }
         
-        // Connect to Loyverse via OAuth
+        // Connect to Loyverse via OAuth Bridge
         function connectToLoyverse() {
-            const apiBase = getApiBase();
-            const oauthUrl = apiBase ? 
-                `${apiBase}/oauth/login` : 
-                '/api/oauth/login';
+            const clientId = 'eQ7QAMonUnzNORRE8xuG';
+            const redirectUri = 'https://kirky29.github.io/loyverse-oauth-bridge/oauth-bridge.html';
+            const scope = 'receipts.read stores.read';
+            
+            // Build the Loyverse OAuth URL
+            const oauthUrl = new URL('https://developer.loyverse.com/oauth/authorize');
+            oauthUrl.searchParams.set('response_type', 'code');
+            oauthUrl.searchParams.set('client_id', clientId);
+            oauthUrl.searchParams.set('redirect_uri', redirectUri);
+            oauthUrl.searchParams.set('scope', scope);
             
             // Open OAuth popup
-            const popup = window.open(oauthUrl, 'loyverse_oauth', 
-                'width=500,height=600,scrollbars=yes,resizable=yes');
+            const popup = window.open(oauthUrl.toString(), 'loyverse_oauth', 
+                'width=600,height=700,scrollbars=yes,resizable=yes');
             
             // Check if popup was blocked
             if (!popup) {
@@ -300,15 +306,21 @@
                 return;
             }
             
-            // Poll for popup closure and check for success
+            // Poll for popup closure and check for token
             const checkClosed = setInterval(() => {
                 if (popup.closed) {
                     clearInterval(checkClosed);
-                    // Try to refresh data to see if we got connected
+                    // Check if we got a token from localStorage
                     setTimeout(() => {
-                        if (accessToken) {
+                        const token = localStorage.getItem('loyverseAccessToken');
+                        if (token) {
+                            accessToken = token;
                             updateStatus(true);
                             showSuccess('Successfully connected to Loyverse!');
+                            // Auto-refresh data
+                            setTimeout(() => {
+                                refreshData();
+                            }, 1000);
                         }
                     }, 1000);
                 }
@@ -323,11 +335,6 @@
             }
             
             try {
-                const apiBase = getApiBase();
-                const url = apiBase ? 
-                    `${apiBase}/api/receipts-total` : 
-                    '/api/receipts-total';
-                
                 const today = new Date();
                 const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
                 const startOfWeek = new Date(today);
@@ -339,34 +346,29 @@
                 const startOfWeekISO = startOfWeek.toISOString();
                 const startOfMonthISO = startOfMonth.toISOString();
                 
+                // Use a CORS proxy to call Loyverse API directly
+                const corsProxy = 'https://cors-anywhere.herokuapp.com/';
+                const loyverseBase = 'https://api.loyverse.com/v0.7/receipts';
+                
                 // Fetch data for all time periods
                 const [todayRes, weekRes, monthRes] = await Promise.all([
-                    fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            accessToken: accessToken,
-                            created_at_min: startOfDayISO,
-                            created_at_max: nowISO
-                        })
+                    fetch(corsProxy + loyverseBase + `?created_at_min=${startOfDayISO}&created_at_max=${nowISO}&limit=1000`, {
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Accept': 'application/json'
+                        }
                     }),
-                    fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            accessToken: accessToken,
-                            created_at_min: startOfWeekISO,
-                            created_at_max: nowISO
-                        })
+                    fetch(corsProxy + loyverseBase + `?created_at_min=${startOfWeekISO}&created_at_max=${nowISO}&limit=1000`, {
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Accept': 'application/json'
+                        }
                     }),
-                    fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            accessToken: accessToken,
-                            created_at_min: startOfMonthISO,
-                            created_at_max: nowISO
-                        })
+                    fetch(corsProxy + loyverseBase + `?created_at_min=${startOfMonthISO}&created_at_max=${nowISO}&limit=1000`, {
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Accept': 'application/json'
+                        }
                     })
                 ]);
                 
@@ -377,9 +379,14 @@
                 ]);
                 
                 if (todayRes.ok && weekRes.ok && monthRes.ok) {
-                    document.getElementById('today-takings').textContent = formatCurrency(todayData.total || 0);
-                    document.getElementById('week-takings').textContent = formatCurrency(weekData.total || 0);
-                    document.getElementById('month-takings').textContent = formatCurrency(monthData.total || 0);
+                    // Calculate totals from receipts
+                    const todayTotal = calculateTotal(todayData.receipts || []);
+                    const weekTotal = calculateTotal(weekData.receipts || []);
+                    const monthTotal = calculateTotal(monthData.receipts || []);
+                    
+                    document.getElementById('today-takings').textContent = formatCurrency(todayTotal);
+                    document.getElementById('week-takings').textContent = formatCurrency(weekTotal);
+                    document.getElementById('month-takings').textContent = formatCurrency(monthTotal);
                     showSuccess('Data refreshed successfully!');
                 } else {
                     throw new Error('Failed to fetch data from Loyverse');
@@ -391,6 +398,19 @@
             }
         }
         
+        // Calculate total from receipts array
+        function calculateTotal(receipts) {
+            let total = 0;
+            for (const receipt of receipts) {
+                if (typeof receipt.total_money_amount === 'number') {
+                    total += receipt.total_money_amount / 100;
+                } else if (receipt.total_money && typeof receipt.total_money.amount === 'number') {
+                    total += receipt.total_money.amount / 100;
+                }
+            }
+            return total;
+        }
+        
         // Format currency
         function formatCurrency(amount) {
             return new Intl.NumberFormat('en-GB', {
@@ -399,39 +419,9 @@
             }).format(amount);
         }
         
-        // Check for OAuth success in URL params
-        function checkOAuthResult() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const oauthSuccess = urlParams.get('oauth_success');
-            const oauthError = urlParams.get('oauth_error');
-            const token = urlParams.get('token');
-            
-            if (oauthSuccess && token) {
-                // Store the token
-                accessToken = token;
-                localStorage.setItem('loyverseToken', token);
-                
-                showSuccess('Successfully connected to Loyverse!');
-                updateStatus(true);
-                
-                // Clear URL params
-                window.history.replaceState({}, document.title, window.location.pathname);
-                
-                // Auto-refresh data
-                setTimeout(() => {
-                    refreshData();
-                }, 1000);
-                
-            } else if (oauthError) {
-                showError(`OAuth failed: ${oauthError}`);
-                // Clear URL params
-                window.history.replaceState({}, document.title, window.location.pathname);
-            }
-        }
-        
         // Load saved token on startup
         function loadSavedToken() {
-            const savedToken = localStorage.getItem('loyverseToken');
+            const savedToken = localStorage.getItem('loyverseAccessToken');
             if (savedToken) {
                 accessToken = savedToken;
                 updateStatus(true);
@@ -441,7 +431,6 @@
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
             loadSavedToken();
-            checkOAuthResult();
             updateStatus(accessToken !== null);
         });
     </script>

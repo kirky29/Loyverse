@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loyverse OAuth Bridge</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-weight: 600;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+        
+        .status.loading {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 2px solid #bee5eb;
+        }
+        
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            background: #0056b3;
+        }
+        
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .code-display {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            font-family: monospace;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 Loyverse OAuth Bridge</h1>
+        <p>This page handles the OAuth flow between Loyverse and your dashboard.</p>
+        
+        <div id="status" class="status loading">
+            Processing OAuth request...
+        </div>
+        
+        <div id="content" style="display: none;">
+            <h3>OAuth Successful! 🎉</h3>
+            <p>Your access token has been generated. You can now use this in your dashboard.</p>
+            
+            <div class="code-display" id="token-display"></div>
+            
+            <p><strong>Next steps:</strong></p>
+            <ol style="text-align: left; display: inline-block;">
+                <li>Copy the access token above</li>
+                <li>Go to your Loyverse Dashboard</li>
+                <li>Paste the token in the Access Token field</li>
+                <li>Click "Refresh Data" to see your takings</li>
+            </ol>
+            
+            <br><br>
+            <a href="https://kirky29.github.io/Loyverse/" class="btn">Go to Dashboard</a>
+        </div>
+        
+        <div id="error-content" style="display: none;">
+            <h3>❌ OAuth Failed</h3>
+            <p id="error-message"></p>
+            <a href="https://kirky29.github.io/Loyverse/" class="btn">Back to Dashboard</a>
+        </div>
+    </div>
+
+    <script>
+        // Loyverse OAuth configuration
+        const LOYVERSE_CONFIG = {
+            clientId: 'eQ7QAMonUnzNORRE8xuG',
+            clientSecret: '_b7646LxCSky-I5U6h3IfBvJ17VoKmKN0FTaz07xzwceAJmfj-giEg==',
+            redirectUri: 'https://kirky29.github.io/loyverse-oauth-bridge/oauth-bridge.html',
+            scope: 'receipts.read stores.read'
+        };
+
+        // Check URL parameters for OAuth response
+        function checkOAuthResponse() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const error = urlParams.get('error');
+            
+            if (error) {
+                showError(`OAuth error: ${error}`);
+                return;
+            }
+            
+            if (code) {
+                exchangeCodeForToken(code);
+            } else {
+                // No code, show instructions
+                showInstructions();
+            }
+        }
+
+        // Exchange authorization code for access token
+        async function exchangeCodeForToken(code) {
+            try {
+                updateStatus('Exchanging code for access token...', 'loading');
+                
+                const tokenUrl = 'https://developer.loyverse.com/oauth/token';
+                const body = new URLSearchParams({
+                    grant_type: 'authorization_code',
+                    client_id: LOYVERSE_CONFIG.clientId,
+                    client_secret: LOYVERSE_CONFIG.clientSecret,
+                    redirect_uri: LOYVERSE_CONFIG.redirectUri,
+                    code: code
+                });
+
+                const response = await fetch(tokenUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: body.toString()
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Token exchange failed: ${response.status} - ${errorText}`);
+                }
+
+                const tokenData = await response.json();
+                
+                if (tokenData.access_token) {
+                    showSuccess(tokenData.access_token);
+                } else {
+                    throw new Error('No access token received');
+                }
+                
+            } catch (err) {
+                console.error('Token exchange error:', err);
+                showError(`Failed to get access token: ${err.message}`);
+            }
+        }
+
+        // Show success with access token
+        function showSuccess(accessToken) {
+            updateStatus('OAuth successful! 🎉', 'success');
+            document.getElementById('content').style.display = 'block';
+            document.getElementById('token-display').textContent = accessToken;
+            
+            // Store token in localStorage for the dashboard to use
+            localStorage.setItem('loyverseAccessToken', accessToken);
+        }
+
+        // Show error
+        function showError(message) {
+            updateStatus('OAuth failed ❌', 'error');
+            document.getElementById('error-content').style.display = 'block';
+            document.getElementById('error-message').textContent = message;
+        }
+
+        // Show instructions
+        function showInstructions() {
+            updateStatus('Ready to connect', 'success');
+            document.getElementById('content').style.display = 'block';
+            document.getElementById('token-display').textContent = 'Click "Connect with Loyverse" in your dashboard to start OAuth';
+        }
+
+        // Update status display
+        function updateStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            checkOAuthResponse();
+        });
+    </script>
+</body>
+</html>
