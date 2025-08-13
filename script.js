@@ -33,7 +33,10 @@ function updateProxyStatus() {
 
 function connectOAuth(accountNumber) {
     const proxy = getProxyBaseUrl();
-    window.open(`${proxy}/oauth/login?account=${accountNumber}`, '_blank');
+    const oauthUrl = proxy.includes('localhost') 
+        ? `${proxy}/oauth/login?account=${accountNumber}`
+        : `${proxy}/api/oauth/login?account=${accountNumber}`;
+    window.open(oauthUrl, '_blank');
 }
 
 // Set current date in manual entry form
