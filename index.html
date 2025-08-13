@@ -186,10 +186,18 @@
             <h2>Connect to Loyverse</h2>
             <p>Click the button below to securely connect your Loyverse account</p>
             <button id="connect-btn" class="connect-button" onclick="connectToLoyverse()">
-                🔗 Connect to Loyverse
+                🔗 Connect with OAuth
             </button>
             <button id="refresh-btn" class="connect-button" onclick="refreshData()" disabled>
                 🔄 Refresh Data
+            </button>
+            
+            <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+            <h3>Or enter your Access Token manually:</h3>
+            <input type="text" id="manual-token" placeholder="Paste your Loyverse Access Token here" 
+                   style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px;">
+            <button class="connect-button" onclick="useManualToken()" style="background: #28a745;">
+                ✅ Use This Token
             </button>
         </div>
         
@@ -296,26 +304,8 @@
             oauthUrl.searchParams.set('redirect_uri', redirectUri);
             oauthUrl.searchParams.set('scope', scope);
             
-            // Open OAuth popup
-            const popup = window.open(oauthUrl.toString(), 'loyverse_oauth', 
-                'width=600,height=700,scrollbars=yes,resizable=yes');
-            
-            // Check if popup was blocked
-            if (!popup) {
-                showError('Popup blocked! Please allow popups and try again.');
-                return;
-            }
-            
-            // Poll for popup closure and check for token
-            const checkClosed = setInterval(() => {
-                if (popup.closed) {
-                    clearInterval(checkClosed);
-                    // Check if we got a token from URL params
-                    setTimeout(() => {
-                        checkOAuthResult();
-                    }, 1000);
-                }
-            }, 500);
+            // Redirect directly instead of popup (works better with GitHub Pages)
+            window.location.href = oauthUrl.toString();
         }
         
         // Check for OAuth result in URL params
@@ -490,6 +480,20 @@
             if (savedToken) {
                 accessToken = savedToken;
                 updateStatus(true);
+            }
+        }
+
+        // Use manual token
+        function useManualToken() {
+            const manualTokenInput = document.getElementById('manual-token').value;
+            if (manualTokenInput) {
+                accessToken = manualTokenInput;
+                localStorage.setItem('loyverseAccessToken', accessToken);
+                updateStatus(true);
+                showSuccess('Successfully connected with manual token!');
+                refreshData(); // Refresh data with the new token
+            } else {
+                showError('Please enter a valid Loyverse Access Token.');
             }
         }
         
