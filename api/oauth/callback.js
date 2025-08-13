@@ -5,24 +5,20 @@ export default async function handler(req, res) {
 
   try {
     const { code, state } = req.query;
-    const account = Number(state || '1');
     
     if (!code) {
-      return res.status(400).send('Missing code');
-    }
-    
-    if (![1, 2].includes(account)) {
-      return res.status(400).send('Invalid account in state');
+      return res.status(400).send('Missing authorization code');
     }
 
     const clientId = process.env.LOYVERSE_CLIENT_ID;
     const clientSecret = process.env.LOYVERSE_CLIENT_SECRET;
-    const redirectUri = process.env.LOYVERSE_REDIRECT_URI || `https://${req.headers.host}/api/oauth/callback`;
+    const redirectUri = `https://${req.headers.host}/api/oauth/callback`;
     
     if (!clientId || !clientSecret) {
       return res.status(500).send('Missing client credentials');
     }
 
+    // Exchange code for token
     const tokenUrl = 'https://developer.loyverse.com/oauth/token';
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
@@ -39,19 +35,15 @@ export default async function handler(req, res) {
     });
 
     if (!tokenResp.ok) {
+      const errorText = await tokenResp.text();
+      console.error('Token exchange failed:', tokenResp.status, errorText);
       throw new Error(`Token request failed: ${tokenResp.status}`);
     }
 
-    const token = await tokenResp.json();
+    const tokenData = await tokenResp.json();
     
-    // Compute expiry timestamp
-    if (typeof token.expires_in === 'number') {
-      token.expires_at = Date.now() + token.expires_in * 1000;
-    }
-
-    // Store token in memory (in production, you'd use a database)
-    // For now, we'll redirect back to the main app with success
-    const successUrl = `https://${req.headers.host}/?oauth_success=true&account=${account}`;
+    // Redirect back to main app with success and token
+    const successUrl = `https://${req.headers.host}/?oauth_success=true&token=${encodeURIComponent(tokenData.access_token)}`;
     
     return res.redirect(successUrl);
     
