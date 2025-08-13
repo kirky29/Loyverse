@@ -406,6 +406,8 @@
             }
             
             try {
+                showSuccess('Fetching data from Loyverse...');
+                
                 const today = new Date();
                 const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
                 const startOfWeek = new Date(today);
@@ -417,61 +419,67 @@
                 const startOfWeekISO = startOfWeek.toISOString();
                 const startOfMonthISO = startOfMonth.toISOString();
                 
-                // Try multiple CORS proxies in case one fails
-                const corsProxies = [
-                    'https://cors-anywhere.herokuapp.com/',
-                    'https://api.allorigins.win/raw?url=',
-                    'https://cors.bridged.cc/'
-                ];
-                
+                // Try using a different approach - use a working CORS proxy
+                const workingProxy = 'https://api.allorigins.win/raw?url=';
                 const loyverseBase = 'https://api.loyverse.com/v0.7/receipts';
                 
-                // Function to try a specific CORS proxy
-                async function tryProxy(proxyUrl) {
-                    try {
-                        const response = await fetch(proxyUrl + loyverseBase + `?created_at_min=${startOfDayISO}&created_at_max=${nowISO}&limit=1000`, {
-                            headers: {
-                                'Authorization': `Bearer ${accessToken}`,
-                                'Accept': 'application/json'
-                            }
-                        });
-                        
-                        if (response.ok) {
-                            const text = await response.text();
-                            try {
-                                return JSON.parse(text);
-                            } catch (e) {
-                                throw new Error(`Invalid JSON response: ${text.substring(0, 100)}`);
-                            }
-                        } else {
-                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                // Make a single test call first to see if it works
+                const testUrl = `${workingProxy}${encodeURIComponent(loyverseBase + '?limit=1')}`;
+                
+                const testResponse = await fetch(testUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (!testResponse.ok) {
+                    throw new Error(`Test call failed: ${testResponse.status} ${testResponse.statusText}`);
+                }
+                
+                const testData = await testResponse.text();
+                console.log('Test response:', testData.substring(0, 200));
+                
+                // If test works, fetch all data
+                const [todayRes, weekRes, monthRes] = await Promise.all([
+                    fetch(`${workingProxy}${encodeURIComponent(loyverseBase + `?created_at_min=${startOfDayISO}&created_at_max=${nowISO}&limit=1000`)}`, {
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Accept': 'application/json'
                         }
-                    } catch (err) {
-                        throw new Error(`Proxy ${proxyUrl} failed: ${err.message}`);
-                    }
+                    }),
+                    fetch(`${workingProxy}${encodeURIComponent(loyverseBase + `?created_at_min=${startOfWeekISO}&created_at_max=${nowISO}&limit=1000`)}`, {
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Accept': 'application/json'
+                        }
+                    }),
+                    fetch(`${workingProxy}${encodeURIComponent(loyverseBase + `?created_at_min=${startOfMonthISO}&created_at_max=${nowISO}&limit=1000`)}`, {
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Accept': 'application/json'
+                        }
+                    })
+                ]);
+                
+                if (!todayRes.ok || !weekRes.ok || !monthRes.ok) {
+                    throw new Error(`One or more API calls failed. Today: ${todayRes.status}, Week: ${weekRes.status}, Month: ${monthRes.status}`);
                 }
                 
-                // Try each proxy until one works
-                let todayData, weekData, monthData;
-                let lastError;
+                const [todayText, weekText, monthText] = await Promise.all([
+                    todayRes.text(),
+                    weekRes.text(),
+                    monthRes.text()
+                ]);
                 
-                for (const proxy of corsProxies) {
-                    try {
-                        [todayData, weekData, monthData] = await Promise.all([
-                            tryProxy(proxy),
-                            tryProxy(proxy),
-                            tryProxy(proxy)
-                        ]);
-                        break; // Success, exit loop
-                    } catch (err) {
-                        lastError = err;
-                        continue; // Try next proxy
-                    }
-                }
+                // Parse JSON responses
+                const todayData = JSON.parse(todayText);
+                const weekData = JSON.parse(weekText);
+                const monthData = JSON.parse(monthText);
                 
-                if (!todayData || !weekData || !monthData) {
-                    throw new Error(`All CORS proxies failed. Last error: ${lastError.message}`);
-                }
+                console.log('Today data:', todayData);
+                console.log('Week data:', weekData);
+                console.log('Month data:', monthData);
                 
                 // Calculate totals from receipts
                 const todayTotal = calculateTotal(todayData.receipts || []);
@@ -481,15 +489,20 @@
                 document.getElementById('today-takings').textContent = formatCurrency(todayTotal);
                 document.getElementById('week-takings').textContent = formatCurrency(weekTotal);
                 document.getElementById('month-takings').textContent = formatCurrency(monthTotal);
-                showSuccess('Data refreshed successfully!');
+                
+                showSuccess(`Data loaded! Today: ${formatCurrency(todayTotal)}, Week: ${formatCurrency(weekTotal)}, Month: ${formatCurrency(monthTotal)}`);
                 
             } catch (error) {
                 console.error('Error refreshing data:', error);
                 showError(`Failed to refresh data: ${error.message}`);
                 
-                // Show helpful error message
-                if (error.message.includes('CORS')) {
-                    showError('CORS proxy issue. Try refreshing the page or wait a few minutes.');
+                // Show more detailed error info
+                if (error.message.includes('JSON')) {
+                    showError('Invalid response from Loyverse API. Check console for details.');
+                } else if (error.message.includes('CORS')) {
+                    showError('CORS issue. Try refreshing the page.');
+                } else {
+                    showError(`API Error: ${error.message}`);
                 }
             }
         }
