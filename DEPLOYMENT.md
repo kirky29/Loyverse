@@ -1,43 +1,48 @@
-# 🚀 Deploy to Production - Simple Guide
+# 🚀 Deploy to Production - Vercel (Recommended)
 
 ## What I've Done For You
 
-✅ **Created `render.yaml`** - This tells Render exactly how to deploy your app
-✅ **Updated the frontend** - It now automatically detects local vs production
-✅ **Pushed everything to GitHub** - Your repo is ready for deployment
+✅ **Created `vercel.json`** - This tells Vercel exactly how to deploy your app
+✅ **Updated the frontend** - Now automatically detects local vs production
+✅ **Added deployment instructions** - Right in your dashboard
+✅ **Pushed everything to GitHub** - Your repo is production-ready
+✅ **Created a simple guide** - This file with step-by-step instructions
 
-## 🎯 Your Next Steps (5 minutes)
+## 🎯 Your Next Steps (3 minutes)
 
-### 1. Go to Render.com
-- Visit [https://render.com](https://render.com)
-- Sign up with your GitHub account (or login if you already have one)
+### 1. Install Vercel CLI
+```bash
+npm install -g vercel
+```
 
-### 2. Create New Service
-- Click the **"New +"** button
-- Select **"Blueprint"** (this will use our `render.yaml`)
+### 2. Deploy
+```bash
+cd /Users/Kirk/Desktop/Web\ Apps/Loyverse
+vercel
+```
 
-### 3. Connect Your Repo
-- Click **"Connect a Git repository"**
-- Select **"kirky29/Loyverse"**
-- Render will automatically detect the configuration
+### 3. Follow Prompts
+- **Set up and deploy?** → `Y`
+- **Which scope?** → `kirky29` (your GitHub username)
+- **Link to existing project?** → `N`
+- **Project name?** → `loyverse-dashboard` (or press Enter for default)
+- **In which directory is your code located?** → `./` (press Enter)
+- **Want to override the settings?** → `N`
 
-### 4. Deploy
-- Click **"Apply"** 
-- Wait about 2-3 minutes for deployment
-- Your API will be available at: `https://loyverse-dashboard-api.onrender.com`
-
-### 5. Update Loyverse App
-- Go back to [developer.loyverse.com](https://developer.loyverse.com)
-- Add this redirect URL: `https://loyverse-dashboard-api.onrender.com/oauth/callback`
+### 4. Update Loyverse App
+- Go to [developer.loyverse.com](https://developer.loyverse.com)
+- Add this redirect URL: `https://loyverse-dashboard.vercel.app/oauth/callback`
 - Save the changes
 
 ## 🎉 You're Done!
 
-- **Frontend**: `https://kirky29.github.io/Loyverse/` (after enabling GitHub Pages)
-- **Backend**: `https://loyverse-dashboard-api.onrender.com`
-- **OAuth**: Will work from anywhere in the world!
+- **Frontend + Backend**: `https://loyverse-dashboard.vercel.app`
+- **OAuth**: Works from anywhere in the world!
+- **Auto-deploy**: Every time you push to GitHub, Vercel updates automatically
 
 ## 🔧 Enable GitHub Pages (Optional)
+
+If you want the frontend on GitHub Pages too:
 
 1. Go to your GitHub repo: [https://github.com/kirky29/Loyverse](https://github.com/kirky29/Loyverse)
 2. Click **Settings** → **Pages**
@@ -49,9 +54,17 @@ Your dashboard will then be available at: `https://kirky29.github.io/Loyverse/`
 
 ## 🆘 Need Help?
 
-- **Render Issues**: Check the logs in your Render dashboard
+- **Vercel Issues**: Check the logs in your Vercel dashboard
 - **OAuth Issues**: Make sure the redirect URL matches exactly
 - **API Issues**: Check the browser console for error messages
+
+## 🚀 Why Vercel?
+
+- **Faster deployments** (30 seconds vs 2-3 minutes)
+- **Better free tier** (more generous limits)
+- **GitHub integration** (deploys automatically when you push)
+- **Edge functions** (faster API responses)
+- **Better developer experience**
 
 ---
 

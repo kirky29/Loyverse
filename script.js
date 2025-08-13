@@ -17,8 +17,8 @@ function getProxyBaseUrl() {
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         return 'http://localhost:3001';
     } else {
-        // Production URL - will be updated after Render deployment
-        return 'https://loyverse-dashboard-api.onrender.com';
+        // Production URL - Vercel deployment
+        return 'https://loyverse-dashboard.vercel.app';
     }
 }
 

@@ -1,0 +1,45 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "*.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "*.css",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "*.js",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/oauth/(.*)",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/health",
+      "dest": "/server.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
+  "env": {
+    "LOYVERSE_CLIENT_ID": "eQ7QAMonUnzNORRE8xuG",
+    "LOYVERSE_CLIENT_SECRET": "_b7646LxCSky-I5U6h3IfBvJ17VoKmKN0FTaz07xzwceAJmfj-giEg==",
+    "LOYVERSE_SCOPE": "receipts.read stores.read",
+    "NODE_ENV": "production"
+  }
+}
