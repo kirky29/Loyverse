@@ -215,12 +215,12 @@
         </div>
         
         <div class="instructions">
-            <h3>🚀 How to Deploy (3 minutes)</h3>
+            <h3>🚀 How to Deploy (2 minutes)</h3>
             <ol>
-                <li><strong>Install Vercel CLI:</strong> <code>npm install -g vercel</code></li>
-                <li><strong>Deploy:</strong> Run <code>vercel</code> in this folder</li>
-                <li><strong>Follow prompts:</strong> Use defaults for everything</li>
-                <li><strong>Add redirect URL:</strong> In your Loyverse app, add: <code>https://your-app.vercel.app/api/oauth/callback</code></li>
+                <li><strong>Push to GitHub:</strong> Your files are already in the main branch</li>
+                <li><strong>Enable GitHub Pages:</strong> Go to Settings → Pages → Source: Deploy from branch</li>
+                <li><strong>Set branch:</strong> main, folder: / (root)</li>
+                <li><strong>Add redirect URL:</strong> In your Loyverse app, add: <code>https://kirky29.github.io/Loyverse/</code></li>
                 <li><strong>Test:</strong> Click "Connect to Loyverse" on your live app</li>
             </ol>
         </div>
@@ -283,10 +283,10 @@
             }
         }
         
-        // Connect to Loyverse via OAuth Bridge
+        // Connect to Loyverse via OAuth
         function connectToLoyverse() {
             const clientId = 'eQ7QAMonUnzNORRE8xuG';
-            const redirectUri = 'https://kirky29.github.io/loyverse-oauth-bridge/oauth-bridge.html';
+            const redirectUri = window.location.origin + window.location.pathname;
             const scope = 'receipts.read stores.read';
             
             // Build the Loyverse OAuth URL
@@ -310,21 +310,86 @@
             const checkClosed = setInterval(() => {
                 if (popup.closed) {
                     clearInterval(checkClosed);
-                    // Check if we got a token from localStorage
+                    // Check if we got a token from URL params
                     setTimeout(() => {
-                        const token = localStorage.getItem('loyverseAccessToken');
-                        if (token) {
-                            accessToken = token;
-                            updateStatus(true);
-                            showSuccess('Successfully connected to Loyverse!');
-                            // Auto-refresh data
-                            setTimeout(() => {
-                                refreshData();
-                            }, 1000);
-                        }
+                        checkOAuthResult();
                     }, 1000);
                 }
             }, 500);
+        }
+        
+        // Check for OAuth result in URL params
+        function checkOAuthResult() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const error = urlParams.get('error');
+            
+            if (error) {
+                showError(`OAuth error: ${error}`);
+                // Clear URL params
+                window.history.replaceState({}, document.title, window.location.pathname);
+                return;
+            }
+            
+            if (code) {
+                exchangeCodeForToken(code);
+            }
+        }
+        
+        // Exchange authorization code for access token
+        async function exchangeCodeForToken(code) {
+            try {
+                showSuccess('Exchanging code for access token...');
+                
+                // Use a CORS proxy to call Loyverse token endpoint
+                const corsProxy = 'https://cors-anywhere.herokuapp.com/';
+                const tokenUrl = 'https://developer.loyverse.com/oauth/token';
+                
+                const body = new URLSearchParams({
+                    grant_type: 'authorization_code',
+                    client_id: 'eQ7QAMonUnzNORRE8xuG',
+                    client_secret: '_b7646LxCSky-I5U6h3IfBvJ17VoKmKN0FTaz07xzwceAJmfj-giEg==',
+                    redirect_uri: window.location.origin + window.location.pathname,
+                    code: code
+                });
+
+                const response = await fetch(corsProxy + tokenUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: body.toString()
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Token exchange failed: ${response.status} - ${errorText}`);
+                }
+
+                const tokenData = await response.json();
+                
+                if (tokenData.access_token) {
+                    accessToken = tokenData.access_token;
+                    localStorage.setItem('loyverseAccessToken', tokenData.access_token);
+                    
+                    showSuccess('Successfully connected to Loyverse!');
+                    updateStatus(true);
+                    
+                    // Clear URL params
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    
+                    // Auto-refresh data
+                    setTimeout(() => {
+                        refreshData();
+                    }, 1000);
+                } else {
+                    throw new Error('No access token received');
+                }
+                
+            } catch (err) {
+                console.error('Token exchange error:', err);
+                showError(`Failed to get access token: ${err.message}`);
+            }
         }
         
         // Refresh data from Loyverse
@@ -431,6 +496,7 @@
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
             loadSavedToken();
+            checkOAuthResult(); // Check if we're returning from OAuth
             updateStatus(accessToken !== null);
         });
     </script>
