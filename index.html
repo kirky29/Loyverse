@@ -417,55 +417,80 @@
                 const startOfWeekISO = startOfWeek.toISOString();
                 const startOfMonthISO = startOfMonth.toISOString();
                 
-                // Use a CORS proxy to call Loyverse API directly
-                const corsProxy = 'https://cors-anywhere.herokuapp.com/';
+                // Try multiple CORS proxies in case one fails
+                const corsProxies = [
+                    'https://cors-anywhere.herokuapp.com/',
+                    'https://api.allorigins.win/raw?url=',
+                    'https://cors.bridged.cc/'
+                ];
+                
                 const loyverseBase = 'https://api.loyverse.com/v0.7/receipts';
                 
-                // Fetch data for all time periods
-                const [todayRes, weekRes, monthRes] = await Promise.all([
-                    fetch(corsProxy + loyverseBase + `?created_at_min=${startOfDayISO}&created_at_max=${nowISO}&limit=1000`, {
-                        headers: {
-                            'Authorization': `Bearer ${accessToken}`,
-                            'Accept': 'application/json'
+                // Function to try a specific CORS proxy
+                async function tryProxy(proxyUrl) {
+                    try {
+                        const response = await fetch(proxyUrl + loyverseBase + `?created_at_min=${startOfDayISO}&created_at_max=${nowISO}&limit=1000`, {
+                            headers: {
+                                'Authorization': `Bearer ${accessToken}`,
+                                'Accept': 'application/json'
+                            }
+                        });
+                        
+                        if (response.ok) {
+                            const text = await response.text();
+                            try {
+                                return JSON.parse(text);
+                            } catch (e) {
+                                throw new Error(`Invalid JSON response: ${text.substring(0, 100)}`);
+                            }
+                        } else {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                         }
-                    }),
-                    fetch(corsProxy + loyverseBase + `?created_at_min=${startOfWeekISO}&created_at_max=${nowISO}&limit=1000`, {
-                        headers: {
-                            'Authorization': `Bearer ${accessToken}`,
-                            'Accept': 'application/json'
-                        }
-                    }),
-                    fetch(corsProxy + loyverseBase + `?created_at_min=${startOfMonthISO}&created_at_max=${nowISO}&limit=1000`, {
-                        headers: {
-                            'Authorization': `Bearer ${accessToken}`,
-                            'Accept': 'application/json'
-                        }
-                    })
-                ]);
-                
-                const [todayData, weekData, monthData] = await Promise.all([
-                    todayRes.json(),
-                    weekRes.json(),
-                    monthRes.json()
-                ]);
-                
-                if (todayRes.ok && weekRes.ok && monthRes.ok) {
-                    // Calculate totals from receipts
-                    const todayTotal = calculateTotal(todayData.receipts || []);
-                    const weekTotal = calculateTotal(weekData.receipts || []);
-                    const monthTotal = calculateTotal(monthData.receipts || []);
-                    
-                    document.getElementById('today-takings').textContent = formatCurrency(todayTotal);
-                    document.getElementById('week-takings').textContent = formatCurrency(weekTotal);
-                    document.getElementById('month-takings').textContent = formatCurrency(monthTotal);
-                    showSuccess('Data refreshed successfully!');
-                } else {
-                    throw new Error('Failed to fetch data from Loyverse');
+                    } catch (err) {
+                        throw new Error(`Proxy ${proxyUrl} failed: ${err.message}`);
+                    }
                 }
+                
+                // Try each proxy until one works
+                let todayData, weekData, monthData;
+                let lastError;
+                
+                for (const proxy of corsProxies) {
+                    try {
+                        [todayData, weekData, monthData] = await Promise.all([
+                            tryProxy(proxy),
+                            tryProxy(proxy),
+                            tryProxy(proxy)
+                        ]);
+                        break; // Success, exit loop
+                    } catch (err) {
+                        lastError = err;
+                        continue; // Try next proxy
+                    }
+                }
+                
+                if (!todayData || !weekData || !monthData) {
+                    throw new Error(`All CORS proxies failed. Last error: ${lastError.message}`);
+                }
+                
+                // Calculate totals from receipts
+                const todayTotal = calculateTotal(todayData.receipts || []);
+                const weekTotal = calculateTotal(weekData.receipts || []);
+                const monthTotal = calculateTotal(monthData.receipts || []);
+                
+                document.getElementById('today-takings').textContent = formatCurrency(todayTotal);
+                document.getElementById('week-takings').textContent = formatCurrency(weekTotal);
+                document.getElementById('month-takings').textContent = formatCurrency(monthTotal);
+                showSuccess('Data refreshed successfully!');
                 
             } catch (error) {
                 console.error('Error refreshing data:', error);
                 showError(`Failed to refresh data: ${error.message}`);
+                
+                // Show helpful error message
+                if (error.message.includes('CORS')) {
+                    showError('CORS proxy issue. Try refreshing the page or wait a few minutes.');
+                }
             }
         }
         
