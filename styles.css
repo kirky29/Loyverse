@@ -33,6 +33,28 @@ header p {
     opacity: 0.9;
 }
 
+.proxy-status {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-top: 15px;
+    transition: all 0.3s ease;
+}
+
+.proxy-status.local {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.proxy-status.production {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
 .accounts-container {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
@@ -180,6 +202,44 @@ header p {
     color: #424242;
     margin: 0;
     font-size: 14px;
+}
+
+.deployment-info {
+    background: #fff3cd;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    border-left: 4px solid #ffc107;
+}
+
+.deployment-info h3 {
+    color: #856404;
+    margin-bottom: 15px;
+    font-size: 1.3rem;
+}
+
+.deployment-info p {
+    color: #856404;
+    margin: 8px 0;
+    font-size: 14px;
+}
+
+.deployment-info a {
+    color: #0056b3;
+    text-decoration: none;
+}
+
+.deployment-info a:hover {
+    text-decoration: underline;
+}
+
+.deployment-info code {
+    background: rgba(0,0,0,0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 12px;
 }
 
 .manual-entry {

@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: loyverse-dashboard-api
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: LOYVERSE_CLIENT_ID
+        value: eQ7QAMonUnzNORRE8xuG
+      - key: LOYVERSE_CLIENT_SECRET
+        value: _b7646LxCSky-I5U6h3IfBvJ17VoKmKN0FTaz07xzwceAJmfj-giEg==
+      - key: LOYVERSE_SCOPE
+        value: receipts.read stores.read
+      - key: NODE_ENV
+        value: production
+    autoDeploy: true

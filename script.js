@@ -9,10 +9,26 @@ document.addEventListener('DOMContentLoaded', function() {
     loadSavedData();
     updateDisplay();
     setCurrentDate();
+    updateProxyStatus();
 });
 
 function getProxyBaseUrl() {
-    return 'http://localhost:3001';
+    // Check if we're running locally or in production
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        return 'http://localhost:3001';
+    } else {
+        // Production URL - will be updated after Render deployment
+        return 'https://loyverse-dashboard-api.onrender.com';
+    }
+}
+
+function updateProxyStatus() {
+    const proxyUrl = getProxyBaseUrl();
+    const statusElement = document.getElementById('proxy-status');
+    if (statusElement) {
+        statusElement.textContent = `API: ${proxyUrl}`;
+        statusElement.className = proxyUrl.includes('localhost') ? 'local' : 'production';
+    }
 }
 
 function connectOAuth(accountNumber) {

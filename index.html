@@ -11,6 +11,7 @@
         <header>
             <h1>Loyverse Dashboard</h1>
             <p>View takings from multiple accounts</p>
+            <div id="proxy-status" class="proxy-status local">API: Loading...</div>
         </header>
         
         <div class="accounts-container">
@@ -86,10 +87,21 @@
             </div>
         </div>
 
+        <!-- Deployment Instructions -->
+        <div class="deployment-info">
+            <h3>🚀 Deploy to Production</h3>
+            <p><strong>Step 1:</strong> Go to <a href="https://render.com" target="_blank">Render.com</a> and sign up/login</p>
+            <p><strong>Step 2:</strong> Click "New +" → "Blueprint"</p>
+            <p><strong>Step 3:</strong> Connect your GitHub repo: <code>kirky29/Loyverse</code></p>
+            <p><strong>Step 4:</strong> Render will auto-detect the configuration</p>
+            <p><strong>Step 5:</strong> Click "Apply" to deploy</p>
+            <p><strong>Step 6:</strong> Add this redirect URL to your Loyverse app: <code>https://loyverse-dashboard-api.onrender.com/oauth/callback</code></p>
+        </div>
+
         <!-- API Info Section -->
         <div class="api-info">
             <h3>API Connection Info</h3>
-            <p><strong>Note:</strong> If you get CORS errors, the app uses a local proxy on http://localhost:3001. You can also connect via OAuth using the buttons above.</p>
+            <p><strong>Note:</strong> The app automatically detects if you're running locally or in production. OAuth will work in both environments.</p>
         </div>
 
         <!-- Manual Entry Section -->
