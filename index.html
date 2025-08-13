@@ -297,12 +297,17 @@
             const redirectUri = window.location.origin + window.location.pathname;
             const scope = 'receipts.read stores.read';
             
+            // Generate a random state parameter for security
+            const state = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+            localStorage.setItem('oauthState', state);
+            
             // Build the Loyverse OAuth URL
             const oauthUrl = new URL('https://developer.loyverse.com/oauth/authorize');
             oauthUrl.searchParams.set('response_type', 'code');
             oauthUrl.searchParams.set('client_id', clientId);
             oauthUrl.searchParams.set('redirect_uri', redirectUri);
             oauthUrl.searchParams.set('scope', scope);
+            oauthUrl.searchParams.set('state', state);
             
             // Redirect directly instead of popup (works better with GitHub Pages)
             window.location.href = oauthUrl.toString();
@@ -313,6 +318,7 @@
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             const error = urlParams.get('error');
+            const returnedState = urlParams.get('state');
             
             if (error) {
                 showError(`OAuth error: ${error}`);
@@ -321,8 +327,18 @@
                 return;
             }
             
-            if (code) {
-                exchangeCodeForToken(code);
+            if (code && returnedState) {
+                // Validate state parameter for security
+                const expectedState = localStorage.getItem('oauthState');
+                if (returnedState === expectedState) {
+                    // State is valid, proceed with token exchange
+                    localStorage.removeItem('oauthState'); // Clean up
+                    exchangeCodeForToken(code);
+                } else {
+                    showError('OAuth state validation failed. Please try again.');
+                    // Clear URL params
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
             }
         }
         
